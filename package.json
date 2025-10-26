@@ -1,0 +1,80 @@
+{
+  "name": "hpoprm-monorepo",
+  "version": "1.0.0",
+  "description": "Oilseed Hedging Platform - Production-ready full-stack hedging platform for farmers and FPOs",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "worker",
+    "contracts",
+    "ai/predictor_service"
+  ],
+  "scripts": {
+    "install:all": "pnpm install",
+  "dev": "concurrently \"pnpm --filter backend dev\" \"pnpm --filter frontend dev\" \"pnpm --filter worker dev\" \"pnpm --filter @hpoprm/ai-predictor dev\"",
+  "build": "pnpm --filter backend build && pnpm --filter frontend build && pnpm --filter worker build && pnpm --filter @hpoprm/ai-predictor build",
+    "build:backend": "pnpm --filter backend build",
+    "build:frontend": "pnpm --filter frontend build",
+    "build:worker": "pnpm --filter worker build",
+    "build:contracts": "pnpm --filter contracts compile",
+  "test": "pnpm --filter backend test && pnpm --filter frontend test && pnpm --filter contracts test && pnpm --filter @hpoprm/ai-predictor test",
+    "test:backend": "pnpm --filter backend test",
+    "test:frontend": "pnpm --filter frontend test",
+    "test:contracts": "pnpm --filter contracts test",
+    "test:e2e": "pnpm --filter backend test:e2e",
+    "lint": "pnpm --filter backend lint && pnpm --filter frontend lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "db:migrate": "pnpm --filter backend prisma:migrate",
+    "db:seed": "pnpm --filter backend prisma:seed",
+    "db:studio": "pnpm --filter backend prisma:studio",
+    "contracts:deploy": "pnpm --filter contracts deploy",
+    "contracts:test": "pnpm --filter contracts test",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "setup": "node scripts/setup.js",
+    "clean": "pnpm --filter backend clean && pnpm --filter frontend clean && pnpm --filter worker clean",
+    "prepare": "husky install"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "concurrently": "^8.2.2",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.1.1",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "keywords": [
+    "hedging",
+    "agriculture",
+    "blockchain",
+    "farmers",
+    "FPO",
+    "commodities",
+    "trading",
+    "AI",
+    "price-forecast"
+  ],
+  "author": "HPOPRM Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/HPOPRM"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
+}

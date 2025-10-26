@@ -1,0 +1,410 @@
+// Prisma Schema for Oilseed Hedging Platform
+// PostgreSQL with TimescaleDB extension support
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =======================
+// USER MANAGEMENT
+// =======================
+
+enum UserRole {
+  farmer
+  fpo_admin
+  market_maker
+  regulator
+  super_admin
+}
+
+enum UserStatus {
+  active
+  inactive
+  suspended
+  pending_verification
+}
+
+model User {
+  id               String       @id @default(uuid())
+  name             String
+  email            String       @unique
+  phone            String?      @unique
+  passwordHash     String       @map("password_hash")
+  role             UserRole     @default(farmer)
+  status           UserStatus   @default(pending_verification)
+  walletAddress    String?      @map("wallet_address")
+  fpoId            String?      @map("fpo_id")
+  emailVerified    Boolean      @default(false) @map("email_verified")
+  phoneVerified    Boolean      @default(false) @map("phone_verified")
+  kycVerified      Boolean      @default(false) @map("kyc_verified")
+  twoFactorEnabled Boolean      @default(false) @map("two_factor_enabled")
+  lastLoginAt      DateTime?    @map("last_login_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  fpo                  FPO?                  @relation(fields: [fpoId], references: [id])
+  farms                Farm[]
+  buyerContracts       Contract[]            @relation("BuyerContracts")
+  sellerContracts      Contract[]            @relation("SellerContracts")
+  orders               Order[]
+  notifications        Notification[]
+  auditLogs            AuditLog[]
+  refreshTokens        RefreshToken[]
+  sessions             Session[]
+
+  @@index([email])
+  @@index([fpoId])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  isRevoked Boolean  @default(false) @map("is_revoked")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+// =======================
+// FARMER PRODUCER ORGANIZATIONS (FPOs)
+// =======================
+
+model FPO {
+  id            String   @id @default(uuid())
+  name          String
+  registrationNo String? @unique @map("registration_no")
+  region        String
+  district      String?
+  state         String?
+  membersCount  Int      @default(0) @map("members_count")
+  contactEmail  String?  @map("contact_email")
+  contactPhone  String?  @map("contact_phone")
+  description   String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  members User[]
+
+  @@index([region])
+  @@index([state])
+  @@map("fpos")
+}
+
+// =======================
+// FARM MANAGEMENT
+// =======================
+
+model Farm {
+  id              String  @id @default(uuid())
+  ownerId         String  @map("owner_id")
+  farmName        String? @map("farm_name")
+  cropType        String  @map("crop_type")
+  area            Float?  @db.Real // in hectares
+  locationLat     Float?  @map("location_lat") @db.Real
+  locationLong    Float?  @map("location_long") @db.Real
+  locationGeoJson Json?   @map("location_geojson")
+  address         String?
+  storageCapacity Int?    @map("storage_capacity") // in quintals
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@index([cropType])
+  @@map("farms")
+}
+
+// =======================
+// MARKET DATA & PRICES
+// =======================
+
+enum PriceSource {
+  ncdex
+  mcx
+  government
+  manual
+  api
+  csv
+}
+
+model Price {
+  id        String      @id @default(uuid())
+  commodity String
+  timestamp DateTime
+  price     Float       @db.Real
+  openPrice Float?      @map("open_price") @db.Real
+  highPrice Float?      @map("high_price") @db.Real
+  lowPrice  Float?      @map("low_price") @db.Real
+  volume    Int?
+  source    PriceSource @default(api)
+  market    String?     // e.g., "Mumbai", "Delhi"
+  unit      String      @default("quintal")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@index([commodity, timestamp])
+  @@index([commodity])
+  @@index([timestamp])
+  @@map("prices")
+}
+
+// =======================
+// FORWARD CONTRACTS
+// =======================
+
+enum ContractStatus {
+  draft
+  pending_signature
+  signed
+  active
+  settled
+  cancelled
+  disputed
+}
+
+model Contract {
+  id               String         @id @default(uuid())
+  contractHash     String         @unique @map("contract_hash")
+  buyerId          String         @map("buyer_id")
+  sellerId         String         @map("seller_id")
+  commodity        String
+  quantity         Int            // in quintals
+  priceFixed       Float          @map("price_fixed") @db.Real
+  totalValue       Float          @map("total_value") @db.Real
+  deliveryDate     DateTime       @map("delivery_date")
+  deliveryLocation String?        @map("delivery_location")
+  status           ContractStatus @default(draft)
+  terms            Json?          // Contract terms and conditions
+  ipfsCid          String?        @map("ipfs_cid")
+  blockchainTx     String?        @map("blockchain_tx")
+  blockchainStatus String?        @map("blockchain_status")
+  buyerSignature   String?        @map("buyer_signature")
+  sellerSignature  String?        @map("seller_signature")
+  signedAt         DateTime?      @map("signed_at")
+  settledAt        DateTime?      @map("settled_at")
+  cancelledAt      DateTime?      @map("cancelled_at")
+  cancellationReason String?      @map("cancellation_reason")
+  escrowAmount     Float?         @map("escrow_amount") @db.Real
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  // Relations
+  buyer  User @relation("BuyerContracts", fields: [buyerId], references: [id])
+  seller User @relation("SellerContracts", fields: [sellerId], references: [id])
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([commodity])
+  @@index([status])
+  @@index([deliveryDate])
+  @@map("contracts")
+}
+
+// =======================
+// SIMULATED TRADING
+// =======================
+
+enum OrderType {
+  simulated
+  real
+}
+
+enum OrderSide {
+  buy
+  sell
+}
+
+enum OrderStatus {
+  pending
+  partially_filled
+  filled
+  cancelled
+  expired
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  userId         String      @map("user_id")
+  type           OrderType   @default(simulated)
+  side           OrderSide
+  commodity      String
+  price          Float       @db.Real
+  quantity       Int
+  filledQuantity Int         @default(0) @map("filled_quantity")
+  status         OrderStatus @default(pending)
+  expiresAt      DateTime?   @map("expires_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  buyTrades  Trade[] @relation("BuyTrades")
+  sellTrades Trade[] @relation("SellTrades")
+
+  @@index([userId])
+  @@index([commodity])
+  @@index([status])
+  @@index([side])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model Trade {
+  id          String   @id @default(uuid())
+  buyOrderId  String   @map("buy_order_id")
+  sellOrderId String   @map("sell_order_id")
+  commodity   String
+  price       Float    @db.Real
+  quantity    Int
+  timestamp   DateTime @default(now())
+
+  // Relations
+  buyOrder  Order @relation("BuyTrades", fields: [buyOrderId], references: [id])
+  sellOrder Order @relation("SellTrades", fields: [sellOrderId], references: [id])
+
+  @@index([buyOrderId])
+  @@index([sellOrderId])
+  @@index([commodity])
+  @@index([timestamp])
+  @@map("trades")
+}
+
+// =======================
+// NOTIFICATIONS
+// =======================
+
+enum NotificationType {
+  price_alert
+  contract_signed
+  contract_settlement
+  trade_executed
+  order_filled
+  kyc_update
+  system_announcement
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String           @map("user_id")
+  type        NotificationType
+  title       String
+  message     String
+  payloadJson Json?            @map("payload_json")
+  isRead      Boolean          @default(false) @map("is_read")
+  readAt      DateTime?        @map("read_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// =======================
+// AI PREDICTIONS
+// =======================
+
+model AIPrediction {
+  id                 String   @id @default(uuid())
+  commodity          String
+  generatedAt        DateTime @default(now()) @map("generated_at")
+  horizonDays        Int      @map("horizon_days")
+  pointForecastJson  Json     @map("point_forecast_json")
+  confIntervalsJson  Json     @map("conf_intervals_json")
+  modelVersion       String   @map("model_version")
+  modelType          String   @map("model_type") // "prophet", "lstm", etc.
+  accuracy           Float?   @db.Real
+  metadata           Json?
+
+  @@index([commodity])
+  @@index([generatedAt])
+  @@map("ai_predictions")
+}
+
+// =======================
+// AUDIT LOGS
+// =======================
+
+enum AuditAction {
+  user_login
+  user_logout
+  user_register
+  contract_create
+  contract_sign
+  contract_settle
+  contract_cancel
+  order_create
+  order_cancel
+  trade_execute
+  kyc_submit
+  kyc_approve
+  settings_change
+}
+
+model AuditLog {
+  id        String      @id @default(uuid())
+  userId    String?     @map("user_id")
+  action    AuditAction
+  resource  String?     // e.g., "contract", "order"
+  resourceId String?    @map("resource_id")
+  ipAddress String?     @map("ip_address")
+  userAgent String?     @map("user_agent")
+  metadata  Json?
+  timestamp DateTime    @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+// =======================
+// SYSTEM CONFIGURATION
+// =======================
+
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_config")
+}

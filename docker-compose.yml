@@ -1,0 +1,199 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: hedging-postgres
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hedging_platform
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hedging-network
+
+  # Redis Cache & Queue
+  redis:
+    image: redis:7-alpine
+    container_name: hedging-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    command: redis-server --appendonly yes --requirepass redis123
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '--raw', 'incr', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hedging-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: development
+    container_name: hedging-backend
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+      - '9229:9229' # Debug port
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hedging_platform?schema=public
+      REDIS_URL: redis://:redis123@redis:6379
+      JWT_SECRET: dev-secret-change-in-production
+      BLOCKCHAIN_RPC_URL: http://hardhat:8545
+      AI_SERVICE_URL: http://ai-service:8000
+      FRONTEND_URL: http://localhost:5173
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/prisma:/app/prisma
+      - backend_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hedging-network
+    command: npm run start:dev
+
+  # Trading Engine Worker
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+      target: development
+    container_name: hedging-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hedging_platform?schema=public
+      REDIS_URL: redis://:redis123@redis:6379
+      WORKER_CONCURRENCY: 5
+    volumes:
+      - ./worker/src:/app/src
+      - worker_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hedging-network
+    command: npm run start:dev
+
+  # AI Prediction Service
+  ai-service:
+    build:
+      context: ./ai/predictor_service
+      dockerfile: Dockerfile
+    container_name: hedging-ai
+    restart: unless-stopped
+    ports:
+      - '8000:8000'
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/hedging_platform
+      REDIS_URL: redis://:redis123@redis:6379
+      USE_STUB_AI: 'true'
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hedging-network
+    command: npm run dev
+
+  # Frontend (Development)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: hedging-frontend
+    restart: unless-stopped
+    ports:
+      - '5173:5173'
+    environment:
+      VITE_API_URL: http://localhost:3000
+      VITE_WS_URL: ws://localhost:3000
+      VITE_BLOCKCHAIN_NETWORK: localhost
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - frontend_node_modules:/app/node_modules
+    networks:
+      - hedging-network
+    command: npm run dev -- --host
+
+  # Local Hardhat Blockchain Node
+  hardhat:
+    build:
+      context: ./contracts
+      dockerfile: Dockerfile
+    container_name: hedging-hardhat
+    restart: unless-stopped
+    ports:
+      - '8545:8545'
+    volumes:
+      - ./contracts:/app
+      - hardhat_node_modules:/app/node_modules
+    networks:
+      - hedging-network
+    command: npx hardhat node --hostname 0.0.0.0
+
+  # Nginx Reverse Proxy (Optional for production-like setup)
+  nginx:
+    image: nginx:alpine
+    container_name: hedging-nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - hedging-network
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_node_modules:
+    driver: local
+  worker_node_modules:
+    driver: local
+  frontend_node_modules:
+    driver: local
+  hardhat_node_modules:
+    driver: local
+  ai_cache:
+    driver: local
+
+networks:
+  hedging-network:
+    driver: bridge

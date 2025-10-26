@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "market": "Market",
+    "trading": "Trading",
+    "contracts": "Contracts",
+    "profile": "Profile",
+    "admin": "Admin",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "fullName": "Full Name",
+    "phone": "Phone Number",
+    "role": "Role",
+    "farmer": "Farmer",
+    "fpoAdmin": "FPO Admin",
+    "marketMaker": "Market Maker",
+    "welcome": "Welcome Back",
+    "newUser": "New User?",
+    "existingUser": "Already have an account?"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "recentActivity": "Recent Activity",
+    "priceAlerts": "Price Alerts",
+    "activeContracts": "Active Contracts",
+    "portfolio": "Portfolio"
+  },
+  "market": {
+    "title": "Market Prices",
+    "commodity": "Commodity",
+    "price": "Price",
+    "change": "24h Change",
+    "volume": "Volume",
+    "forecast": "AI Forecast",
+    "historical": "Historical Data"
+  },
+  "trading": {
+    "title": "Trading",
+    "buy": "Buy",
+    "sell": "Sell",
+    "orderBook": "Order Book",
+    "myOrders": "My Orders",
+    "quantity": "Quantity",
+    "price": "Price",
+    "total": "Total",
+    "placeOrder": "Place Order",
+    "cancelOrder": "Cancel"
+  },
+  "contracts": {
+    "title": "Forward Contracts",
+    "create": "Create Contract",
+    "sign": "Sign Contract",
+    "view": "View Details",
+    "status": "Status",
+    "buyer": "Buyer",
+    "seller": "Seller",
+    "commodity": "Commodity",
+    "quantity": "Quantity",
+    "price": "Fixed Price",
+    "deliveryDate": "Delivery Date"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import"
+  }
+}

@@ -1,0 +1,292 @@
+name: CI - Build and Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  # Lint and format check
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Lint backend
+        run: cd backend && npm ci && npm run lint
+
+      - name: Lint frontend
+        run: cd frontend && npm ci && npm run lint
+
+      - name: Check formatting
+        run: npm run format:check || true
+
+  # Backend tests
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: hedging_platform_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Generate Prisma client
+        run: cd backend && npx prisma generate
+
+      - name: Run database migrations
+        run: cd backend && npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hedging_platform_test?schema=public
+
+      - name: Run unit tests
+        run: cd backend && npm run test:cov
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hedging_platform_test?schema=public
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only
+          JWT_REFRESH_SECRET: test-refresh-secret-key-for-ci-testing-only
+
+      - name: Upload backend coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/coverage/lcov.info
+          flags: backend
+          name: backend-coverage
+
+  # Frontend tests
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Run unit tests
+        run: cd frontend && npm run test:coverage
+
+      - name: Upload frontend coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./frontend/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+
+  # Smart contract tests
+  contracts-test:
+    name: Smart Contract Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install contract dependencies
+        run: cd contracts && npm ci
+
+      - name: Compile contracts
+        run: cd contracts && npx hardhat compile
+
+      - name: Run contract tests
+        run: cd contracts && npx hardhat test
+
+      - name: Run coverage
+        run: cd contracts && npx hardhat coverage
+
+  # Build checks
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: [lint, backend-test, frontend-test, contracts-test]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build backend
+        run: cd backend && npm ci && npm run build
+
+      - name: Build frontend
+        run: cd frontend && npm ci && npm run build
+        env:
+          VITE_API_URL: https://api.example.com
+
+      - name: Compile contracts
+        run: cd contracts && npm ci && npx hardhat compile
+
+  # Security scan
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --all-projects --detection-depth=4
+
+      - name: Run npm audit
+        run: |
+          cd backend && npm audit --audit-level=high || true
+          cd ../frontend && npm audit --audit-level=high || true
+          cd ../contracts && npm audit --audit-level=high || true
+
+  # Docker build test
+  docker-build:
+    name: Docker Build Test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: false
+          tags: hedging-backend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: hedging-frontend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # E2E tests (optional, can be enabled)
+  # e2e-test:
+  #   name: E2E Tests
+  #   runs-on: ubuntu-latest
+  #   needs: [build]
+    
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ env.NODE_VERSION }}
+
+  #     - name: Install Playwright
+  #       run: cd frontend && npx playwright install --with-deps
+
+  #     - name: Start services with Docker Compose
+  #       run: docker-compose up -d
+
+  #     - name: Wait for services
+  #       run: sleep 30
+
+  #     - name: Run E2E tests
+  #       run: cd frontend && npm run test:e2e
+
+  #     - name: Upload test results
+  #       if: always()
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         name: playwright-report
+  #         path: frontend/playwright-report/
+
+  # Notify on success
+  notify-success:
+    name: Notify Success
+    runs-on: ubuntu-latest
+    needs: [build, security, docker-build]
+    if: success()
+    
+    steps:
+      - name: Success notification
+        run: |
+          echo "✅ All CI checks passed!"
+          echo "Build is ready for deployment"

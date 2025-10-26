@@ -1,0 +1,173 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Verify Render API Key
+        run: |
+          if [ -z "${{ secrets.RENDER_API_KEY }}" ]; then
+            echo "❌ RENDER_API_KEY is not set"
+            exit 1
+          fi
+          echo "✅ Render API Key is configured"
+
+      - name: Trigger Render Deploy - Backend
+        id: deploy-backend
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_BACKEND_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true
+
+      - name: Trigger Render Deploy - Frontend
+        id: deploy-frontend
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_FRONTEND_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true
+
+      - name: Trigger Render Deploy - Worker
+        id: deploy-worker
+        uses: johnbeynon/render-deploy-action@v0.0.8
+        with:
+          service-id: ${{ secrets.RENDER_WORKER_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+          wait-for-success: true
+
+      - name: Run Database Migrations
+        run: |
+          echo "Running database migrations..."
+          curl -X POST \
+            "https://api.render.com/v1/services/${{ secrets.RENDER_BACKEND_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache":"clear","shellCommand":"npm run migrate:deploy"}'
+
+      - name: Health Check - Backend
+        run: |
+          echo "Checking backend health..."
+          for i in {1..10}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.RENDER_BACKEND_URL }}/healthz)
+            if [ "$STATUS" -eq 200 ]; then
+              echo "✅ Backend is healthy"
+              break
+            else
+              echo "⏳ Waiting for backend... (attempt $i/10)"
+              sleep 10
+            fi
+          done
+
+      - name: Health Check - Frontend
+        run: |
+          echo "Checking frontend..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.RENDER_FRONTEND_URL }})
+          if [ "$STATUS" -eq 200 ]; then
+            echo "✅ Frontend is accessible"
+          else
+            echo "❌ Frontend health check failed"
+            exit 1
+          fi
+
+      - name: Smoke Tests
+        run: |
+          echo "Running smoke tests..."
+          # Test API endpoint
+          curl -f ${{ secrets.RENDER_BACKEND_URL }}/healthz || exit 1
+          # Test API version endpoint
+          curl -f ${{ secrets.RENDER_BACKEND_URL }}/api/v1/health || exit 1
+          echo "✅ Smoke tests passed"
+
+      - name: Notify Deployment Success
+        if: success()
+        run: |
+          echo "🚀 Deployment successful!"
+          echo "Backend: ${{ secrets.RENDER_BACKEND_URL }}"
+          echo "Frontend: ${{ secrets.RENDER_FRONTEND_URL }}"
+          echo "Deployed commit: ${{ github.sha }}"
+
+      - name: Notify Deployment Failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed"
+          echo "Check Render dashboard for details"
+
+  # Optional: Create GitHub release on successful deploy
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: success() && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=v${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.version }}-${{ github.run_number }}
+          release_name: Release ${{ steps.version.outputs.version }}-${{ github.run_number }}
+          body: |
+            ## Deployed to Production
+            
+            **Commit**: ${{ github.sha }}
+            **Branch**: ${{ github.ref }}
+            **Deployed**: ${{ github.event.head_commit.timestamp }}
+            
+            ### Changes
+            ${{ github.event.head_commit.message }}
+            
+            ### URLs
+            - Backend: ${{ secrets.RENDER_BACKEND_URL }}
+            - Frontend: ${{ secrets.RENDER_FRONTEND_URL }}
+            - API Docs: ${{ secrets.RENDER_BACKEND_URL }}/docs
+          draft: false
+          prerelease: false
+
+# Required GitHub Secrets:
+# - RENDER_API_KEY: Your Render API key
+# - RENDER_BACKEND_SERVICE_ID: Service ID for backend
+# - RENDER_FRONTEND_SERVICE_ID: Service ID for frontend
+# - RENDER_WORKER_SERVICE_ID: Service ID for worker
+# - RENDER_BACKEND_URL: Backend URL (e.g., https://hedging-backend.onrender.com)
+# - RENDER_FRONTEND_URL: Frontend URL (e.g., https://hedging-platform.onrender.com)

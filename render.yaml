@@ -1,0 +1,234 @@
+services:
+  # PostgreSQL Database (Managed)
+  - type: pserv
+    name: hedging-db
+    plan: starter
+    region: oregon
+    databaseName: hedging_platform
+    databaseUser: hedging_user
+    ipAllowList: []
+
+  # Redis Cache (Managed)
+  - type: redis
+    name: hedging-redis
+    plan: starter
+    region: oregon
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+
+  # Backend API Service
+  - type: web
+    name: hedging-backend
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm run start:prod
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hedging-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: hedging-redis
+          type: redis
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: FRONTEND_URL
+        fromService:
+          name: hedging-frontend
+          type: web
+          property: host
+      - key: BACKEND_URL
+        sync: false
+      - key: BLOCKCHAIN_RPC_URL
+        value: https://rpc-mumbai.maticvigil.com
+      - key: BLOCKCHAIN_NETWORK
+        value: mumbai
+      - key: BLOCKCHAIN_CHAIN_ID
+        value: 80001
+      - key: BLOCKCHAIN_PRIVATE_KEY
+        sync: false
+      - key: FORWARD_CONTRACT_REGISTRY_ADDRESS
+        sync: false
+      - key: AI_SERVICE_URL
+        fromService:
+          name: hedging-ai
+          type: web
+          property: host
+      - key: IPFS_PROVIDER
+        value: pinata
+      - key: PINATA_API_KEY
+        sync: false
+      - key: PINATA_SECRET_KEY
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: SENTRY_ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: RATE_LIMIT_ENABLED
+        value: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FEATURE_BLOCKCHAIN_ENABLED
+        value: true
+      - key: FEATURE_AI_PREDICTIONS_ENABLED
+        value: true
+    autoDeploy: true
+
+  # Trading Engine Worker (Background)
+  - type: worker
+    name: hedging-worker
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: cd worker && npm install && npm run build
+    startCommand: cd worker && npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hedging-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: hedging-redis
+          type: redis
+          property: connectionString
+      - key: WORKER_CONCURRENCY
+        value: 5
+      - key: TRADING_ENGINE_MODE
+        value: simulated
+      - key: ORDER_MATCHING_INTERVAL
+        value: 1000
+      - key: LOG_LEVEL
+        value: info
+    autoDeploy: true
+
+  # AI Prediction Service (Node/Express)
+  - type: web
+    name: hedging-ai
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: cd ai/predictor_service && npm install && npm run build
+    startCommand: cd ai/predictor_service && npm run start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hedging-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: hedging-redis
+          type: redis
+          property: connectionString
+      - key: USE_STUB_AI
+        value: true
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_MODEL_VERSION
+        value: v1.0.0
+      - key: LOG_LEVEL
+        value: info
+    autoDeploy: true
+
+  # Frontend Static Site
+  - type: web
+    name: hedging-frontend
+    runtime: static
+    region: oregon
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: hedging-backend
+          type: web
+          property: host
+      - key: VITE_WS_URL
+        sync: false
+      - key: VITE_BLOCKCHAIN_NETWORK
+        value: mumbai
+      - key: VITE_APP_NAME
+        value: Oilseed Hedging Platform
+    autoDeploy: true
+
+  # Cron Job for Price Data Ingestion
+  - type: cron
+    name: price-ingestion-job
+    runtime: node
+    region: oregon
+    schedule: "0 * * * *"
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && node dist/jobs/ingest-prices.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hedging-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: hedging-redis
+          type: redis
+          property: connectionString
+      - key: MARKET_DATA_SOURCE
+        value: csv
+      - key: LOG_LEVEL
+        value: info
+    autoDeploy: true
+
+  # Cron Job for Model Retraining (Weekly)
+  - type: cron
+    name: model-retrain-job
+    runtime: python
+    region: oregon
+    schedule: "0 2 * * 0"
+    buildCommand: cd ai && pip install -r requirements.txt
+    startCommand: cd ai && python scripts/train_model.py
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hedging-db
+          property: connectionString
+      - key: MODEL_PATH
+        value: /opt/render/project/src/ai/models
+      - key: ML_MODEL_TYPE
+        value: prophet
+      - key: LOG_LEVEL
+        value: info
+    autoDeploy: true

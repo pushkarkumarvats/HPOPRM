@@ -1,0 +1,81 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "market": "Market",
+    "trading": "Trading",
+    "contracts": "Contracts",
+    "profile": "Profile",
+    "admin": "Admin",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Login kare",
+    "register": "Register kare",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Password confirm kare",
+    "fullName": "Pura Naam",
+    "phone": "Phone Number",
+    "role": "Role",
+    "farmer": "Kisaan",
+    "fpoAdmin": "FPO Admin",
+    "marketMaker": "Market Maker",
+    "welcome": "Wapas aaiye",
+    "newUser": "Naye user?",
+    "existingUser": "Account hai already?"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "overview": "Overview",
+    "recentActivity": "Recent Activity",
+    "priceAlerts": "Price Alerts",
+    "activeContracts": "Active Contracts",
+    "portfolio": "Portfolio"
+  },
+  "market": {
+    "title": "Market Prices",
+    "commodity": "Commodity",
+    "price": "Price",
+    "change": "24h Change",
+    "volume": "Volume",
+    "forecast": "AI Forecast",
+    "historical": "Historical Data"
+  },
+  "trading": {
+    "title": "Trading",
+    "buy": "Buy",
+    "sell": "Sell",
+    "orderBook": "Order Book",
+    "myOrders": "Mere Orders",
+    "quantity": "Quantity",
+    "price": "Price",
+    "total": "Total",
+    "placeOrder": "Order lagao",
+    "cancelOrder": "Cancel kare"
+  },
+  "contracts": {
+    "title": "Forward Contracts",
+    "create": "Contract banao",
+    "sign": "Sign kare",
+    "view": "Details dekho",
+    "status": "Status",
+    "buyer": "Buyer",
+    "seller": "Seller",
+    "commodity": "Commodity",
+    "quantity": "Quantity",
+    "price": "Fixed Price",
+    "deliveryDate": "Delivery Date"
+  },
+  "common": {
+    "save": "Save kare",
+    "cancel": "Cancel",
+    "submit": "Submit",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import"
+  }
+}
