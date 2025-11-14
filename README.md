@@ -271,15 +271,23 @@ The fastest way to deploy the frontend:
    # Vercel will auto-detect the configuration
    ```
 
-2. **Manual Deployment with CLI**
+2. **Configure Environment Variables**
+   - Go to Vercel Dashboard → Settings → Environment Variables
+   - Add: `VITE_API_URL` = Your backend URL (e.g., `https://your-app.onrender.com`)
+   - Redeploy after setting environment variables
+
+3. **Manual Deployment with CLI**
    ```bash
    npm install -g vercel
    vercel login
    vercel --prod
    ```
 
-**Configuration**: Pre-configured in `vercel.json` and `.vercelignore`  
-**Guide**: See [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md) for detailed instructions
+**Configuration**: Pre-configured in `vercel.json`  
+**Guide**: See [VERCEL_ENV_SETUP.md](VERCEL_ENV_SETUP.md) for environment variable setup  
+**Detailed Guide**: See [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md)
+
+**⚠️ Important**: The frontend requires the backend API to be deployed and accessible. Set `VITE_API_URL` environment variable in Vercel to your backend URL.
 
 ### Backend Deployment to Render
 
