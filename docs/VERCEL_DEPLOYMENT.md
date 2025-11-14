@@ -17,11 +17,11 @@ We've configured Vercel to:
 ### 1. `vercel.json` (Root)
 ```json
 {
-  "version": 2,
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
-  "installCommand": "npm install --prefix frontend",
-  "framework": null
+   "version": 2,
+   "buildCommand": "cd frontend && npm install && npm run build",
+   "outputDirectory": "frontend/dist",
+   "installCommand": "cd frontend && npm install",
+   "framework": null
 }
 ```
 

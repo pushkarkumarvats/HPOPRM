@@ -28,7 +28,7 @@ Updated `contracts/package.json`:
   "version": 2,
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "installCommand": "npm install --prefix frontend",
+   "installCommand": "cd frontend && npm install",
   "framework": null
 }
 ```
