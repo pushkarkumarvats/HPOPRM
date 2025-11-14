@@ -29,6 +29,21 @@ export default function LoginPage() {
     }
   };
 
+  const handleDemoLogin = async (demoEmail: string) => {
+    setError('');
+    setLoading(true);
+
+    try {
+      const { data } = await authApi.login(demoEmail, 'Demo@123');
+      login(data.user, data.accessToken, data.refreshToken);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Demo login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="w-full max-w-md p-8 bg-card rounded-lg border">
@@ -71,6 +86,56 @@ export default function LoginPage() {
             {loading ? t('common.loading') : t('auth.login')}
           </button>
         </form>
+
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-muted"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-card text-muted-foreground">Try Demo Accounts</span>
+            </div>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => handleDemoLogin('farmer@demo.com')}
+              disabled={loading}
+              className="px-4 py-2 border border-primary text-primary rounded-lg text-sm font-medium hover:bg-primary/10 disabled:opacity-50 transition-colors"
+            >
+              👨‍🌾 Farmer Demo
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDemoLogin('fpo@demo.com')}
+              disabled={loading}
+              className="px-4 py-2 border border-primary text-primary rounded-lg text-sm font-medium hover:bg-primary/10 disabled:opacity-50 transition-colors"
+            >
+              🏢 FPO Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDemoLogin('market@demo.com')}
+              disabled={loading}
+              className="px-4 py-2 border border-primary text-primary rounded-lg text-sm font-medium hover:bg-primary/10 disabled:opacity-50 transition-colors"
+            >
+              📈 Market Maker
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDemoLogin('admin@demo.com')}
+              disabled={loading}
+              className="px-4 py-2 border border-primary text-primary rounded-lg text-sm font-medium hover:bg-primary/10 disabled:opacity-50 transition-colors"
+            >
+              ⚙️ Admin
+            </button>
+          </div>
+
+          <p className="mt-4 text-xs text-center text-muted-foreground">
+            Demo accounts use password: <code className="px-1 py-0.5 bg-muted rounded">Demo@123</code>
+          </p>
+        </div>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {t('auth.newUser')}{' '}

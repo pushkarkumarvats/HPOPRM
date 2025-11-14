@@ -20,12 +20,23 @@ export default function LandingPage() {
           <p className="text-xl text-muted-foreground mb-8">
             Secure your oilseed prices with AI-powered forecasting and blockchain-verified contracts
           </p>
-          <Link
-            to="/register"
-            className="inline-block px-8 py-4 bg-primary text-primary-foreground rounded-lg text-lg font-semibold hover:opacity-90"
-          >
-            Start Hedging Now
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link
+              to="/register"
+              className="inline-block px-8 py-4 bg-primary text-primary-foreground rounded-lg text-lg font-semibold hover:opacity-90"
+            >
+              Start Hedging Now
+            </Link>
+            <Link
+              to="/login"
+              className="inline-block px-8 py-4 border-2 border-primary text-primary rounded-lg text-lg font-semibold hover:bg-primary/10"
+            >
+              Try Demo 🚀
+            </Link>
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            No registration needed • Explore all features instantly
+          </p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-8">
