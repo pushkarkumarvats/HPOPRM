@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, TrendingUp, DollarSign, FileText, User, Settings } from 'lucide-react';
+import { Home, TrendingUp, DollarSign, FileText, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const navigation = [

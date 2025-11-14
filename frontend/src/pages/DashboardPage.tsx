@@ -3,7 +3,7 @@ import { marketApi, contractsApi } from '../lib/api';
 import { TrendingUp, FileText, DollarSign } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { data: prices } = useQuery({
+  const { data: _prices } = useQuery({
     queryKey: ['prices'],
     queryFn: () => marketApi.getPrices(),
   });
