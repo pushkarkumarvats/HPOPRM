@@ -1,5 +1,13 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { 
+  isDemoAccount, 
+  authenticateDemoAccount, 
+  MOCK_MARKET_DATA, 
+  MOCK_CONTRACTS, 
+  MOCK_ORDERS,
+  MOCK_NOTIFICATIONS 
+} from './demoAuth';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -52,15 +60,32 @@ api.interceptors.response.use(
 
 // API endpoints
 export const authApi = {
-  login: (email: string, password: string) =>
-    api.post('/auth/login', { email, password }),
+  login: async (email: string, password: string) => {
+    // Check if it's a demo account
+    if (isDemoAccount(email)) {
+      try {
+        const result = authenticateDemoAccount(email, password);
+        return { data: result };
+      } catch (error: any) {
+        throw new Error(error.message);
+      }
+    }
+    // Otherwise use real API
+    return api.post('/auth/login', { email, password });
+  },
   register: (data: any) => api.post('/auth/register', data),
   logout: () => api.post('/auth/logout'),
   getMe: () => api.get('/auth/me'),
 };
 
 export const marketApi = {
-  getPrices: () => api.get('/market/prices'),
+  getPrices: async () => {
+    const token = useAuthStore.getState().accessToken;
+    if (token?.startsWith('demo-token-')) {
+      return { data: MOCK_MARKET_DATA.prices };
+    }
+    return api.get('/market/prices');
+  },
   getPriceHistory: (commodity: string, from: string, to: string) =>
     api.get('/market/price-history', { params: { commodity, from, to } }),
   getLatestPrice: (commodity: string) =>
@@ -69,14 +94,26 @@ export const marketApi = {
 
 export const tradingApi = {
   createOrder: (data: any) => api.post('/trading/orders', data),
-  getOrders: () => api.get('/trading/orders'),
+  getOrders: async () => {
+    const token = useAuthStore.getState().accessToken;
+    if (token?.startsWith('demo-token-')) {
+      return { data: MOCK_ORDERS };
+    }
+    return api.get('/trading/orders');
+  },
   cancelOrder: (id: string) => api.delete(`/trading/orders/${id}`),
   getTrades: () => api.get('/trading/trades'),
 };
 
 export const contractsApi = {
   create: (data: any) => api.post('/contracts', data),
-  getAll: () => api.get('/contracts'),
+  getAll: async () => {
+    const token = useAuthStore.getState().accessToken;
+    if (token?.startsWith('demo-token-')) {
+      return { data: MOCK_CONTRACTS };
+    }
+    return api.get('/contracts');
+  },
   getById: (id: string) => api.get(`/contracts/${id}`),
   sign: (id: string, signature: string) =>
     api.post(`/contracts/${id}/sign`, { signature }),
@@ -88,6 +125,12 @@ export const aiApi = {
 };
 
 export const notificationsApi = {
-  getAll: () => api.get('/notifications'),
+  getAll: async () => {
+    const token = useAuthStore.getState().accessToken;
+    if (token?.startsWith('demo-token-')) {
+      return { data: MOCK_NOTIFICATIONS };
+    }
+    return api.get('/notifications');
+  },
   markAsRead: (id: string) => api.patch(`/notifications/${id}/read`),
 };

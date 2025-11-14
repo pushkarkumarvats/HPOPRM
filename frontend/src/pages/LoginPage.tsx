@@ -23,7 +23,8 @@ export default function LoginPage() {
       login(data.user, data.accessToken, data.refreshToken);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Login failed');
+      const errorMessage = err.response?.data?.message || err.message || 'Login failed';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -38,7 +39,8 @@ export default function LoginPage() {
       login(data.user, data.accessToken, data.refreshToken);
       navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Demo login failed');
+      const errorMessage = err.response?.data?.message || err.message || 'Demo login failed';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
