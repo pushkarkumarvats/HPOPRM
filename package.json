@@ -36,8 +36,7 @@
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
     "setup": "node scripts/setup.js",
-    "clean": "pnpm --filter backend clean && pnpm --filter frontend clean && pnpm --filter worker clean",
-    "prepare": "husky install"
+    "clean": "pnpm --filter backend clean && pnpm --filter frontend clean && pnpm --filter worker clean"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
