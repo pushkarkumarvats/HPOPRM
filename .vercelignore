@@ -1,18 +1,31 @@
-# Ignore all workspaces except frontend
-backend/
-contracts/
-worker/
-ai/
-docs/
-scripts/
+# Only ignore what's not needed for frontend build
+backend/**
+contracts/**
+worker/**
+ai/**
+docs/**
+scripts/**
 
-# Ignore config files
+# Ignore CI/CD files
+.github/**
+
+# Ignore Docker files
 docker-compose.yml
 render.yaml
-.github/
+**/Dockerfile
 
-# Ignore root dependencies
-node_modules/
+# Ignore test files
+**/*.spec.ts
+**/*.test.ts
+**/*.test.tsx
+**/test/**
+**/tests/**
+
+# Ignore documentation
+**/*.md
+!frontend/README.md
+
+# Ignore environment files
 .env
 .env.*
 !.env.example
