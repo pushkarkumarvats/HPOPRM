@@ -28,25 +28,17 @@ Updated `contracts/package.json`:
   "version": 2,
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "installCommand": "cd frontend && npm install"
+  "installCommand": "npm install --prefix frontend",
+  "framework": null
 }
 ```
 
 This tells Vercel to:
-- Only install frontend dependencies (not the whole monorepo)
+- Only install frontend dependencies
 - Build only the frontend
 - Use the correct output directory
 
-### 3. Created .vercelignore ✅
-**File**: `.vercelignore`
-```
-backend/
-contracts/
-worker/
-ai/
-```
-
-This prevents Vercel from processing other workspace directories.
+**Note**: We do NOT use `.vercelignore` as it can interfere with the build process by removing directories before the build commands run.
 
 ### 4. Created Deployment Guide ✅
 **File**: `docs/VERCEL_DEPLOYMENT.md`
@@ -84,9 +76,9 @@ vercel --prod
 
 1. ✅ `contracts/package.json` - Fixed ethers dependency
 2. ✅ `vercel.json` - Vercel build configuration
-3. ✅ `.vercelignore` - Ignore other workspaces
-4. ✅ `docs/VERCEL_DEPLOYMENT.md` - Complete guide
-5. ✅ `README.md` - Added Vercel deployment section
+3. ✅ `docs/VERCEL_DEPLOYMENT.md` - Complete guide
+4. ✅ `README.md` - Added Vercel deployment section
+5. ❌ `.vercelignore` - Removed (was causing build issues)
 
 ## Next Steps
 

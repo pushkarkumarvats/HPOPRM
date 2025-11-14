@@ -20,27 +20,12 @@ We've configured Vercel to:
   "version": 2,
   "buildCommand": "cd frontend && npm install && npm run build",
   "outputDirectory": "frontend/dist",
-  "installCommand": "cd frontend && npm install",
-  "framework": null,
-  "devCommand": "cd frontend && npm run dev",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ./frontend"
+  "installCommand": "npm install --prefix frontend",
+  "framework": null
 }
 ```
 
-### 2. `.vercelignore` (Root)
-Tells Vercel to ignore other workspaces:
-```
-backend/
-contracts/
-worker/
-ai/
-docs/
-scripts/
-docker-compose.yml
-render.yaml
-.github/
-node_modules/
-```
+**Note**: We removed `.vercelignore` as it was causing the frontend directory to be filtered out during the build process. The `vercel.json` configuration is sufficient to build only the frontend.
 
 ## Deployment Steps
 
