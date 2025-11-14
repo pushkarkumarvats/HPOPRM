@@ -12,8 +12,8 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
-    "@nomiclabs/hardhat-ethers": "^2.2.3",
-    "@nomiclabs/hardhat-etherscan": "^3.1.7",
+    "@nomicfoundation/hardhat-ethers": "^3.0.5",
+    "@nomicfoundation/hardhat-verify": "^2.0.3",
     "@typechain/ethers-v6": "^0.5.1",
     "@typechain/hardhat": "^9.1.0",
     "@types/chai": "^4.3.11",

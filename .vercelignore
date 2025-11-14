@@ -1,0 +1,18 @@
+# Ignore all workspaces except frontend
+backend/
+contracts/
+worker/
+ai/
+docs/
+scripts/
+
+# Ignore config files
+docker-compose.yml
+render.yaml
+.github/
+
+# Ignore root dependencies
+node_modules/
+.env
+.env.*
+!.env.example

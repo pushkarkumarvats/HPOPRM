@@ -256,7 +256,32 @@ curl -X POST http://localhost:3000/contracts/CONTRACT_ID/sign \
   }'
 ```
 
-## 🚢 Deployment to Render
+## 🚢 Deployment
+
+### Frontend Deployment to Vercel
+
+The fastest way to deploy the frontend:
+
+1. **Automatic Deployment** (Recommended)
+   ```bash
+   # Push to GitHub
+   git push origin main
+   
+   # Import project in Vercel Dashboard
+   # Vercel will auto-detect the configuration
+   ```
+
+2. **Manual Deployment with CLI**
+   ```bash
+   npm install -g vercel
+   vercel login
+   vercel --prod
+   ```
+
+**Configuration**: Pre-configured in `vercel.json` and `.vercelignore`  
+**Guide**: See [docs/VERCEL_DEPLOYMENT.md](docs/VERCEL_DEPLOYMENT.md) for detailed instructions
+
+### Backend Deployment to Render
 
 ### Option 1: Using render.yaml (Recommended)
 
